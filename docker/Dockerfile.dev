@@ -1,0 +1,55 @@
+# 使用 Node.js 18 作為基礎映像
+FROM node:18-alpine AS builder
+
+# 設定工作目錄
+WORKDIR /app
+
+# 複製 package.json 並安裝依賴
+COPY package*.json ./
+COPY pnpm-lock.yaml ./
+RUN npm install
+
+# 複製所有專案檔案
+COPY . .
+
+# 設定環境preview 強制 production
+ENV NODE_ENV=production
+# 設定環境變數
+ENV VITE_ENV=dev
+ENV VITE_NAME=dev
+ENV VITE_API_URL=https://localdb-1w4g.onrender.com
+ENV VITE_API=/api2
+ENV VITE_BASE_URL=/dev/m-cloud
+ENV VITE_MINIFY=esbuild
+ENV VITE_VARIABLES=開發
+RUN echo "現在的 VITE_ENV 是: $VITE_ENV"
+
+# 預先建構
+RUN npm run build:dev
+
+# 第二階段：Nginx
+FROM nginx:alpine
+
+# 複製構建結果
+COPY --from=builder /app/dist/${VITE_NAME} /usr/share/nginx/html/${VITE_NAME}
+
+# 設定環境變數（避免 `envsubst` 無法替換）
+ENV VITE_NAME=dev
+ENV VITE_API_URL=https://localdb-1w4g.onrender.com
+ENV VITE_API=/api2
+
+# 複製 Nginx 配置模板
+COPY nginx/nginx.conf /etc/nginx/templates/default.conf.template
+
+# 開放 80 端口
+EXPOSE 80
+
+# 使用 envsubst 處理配置文件並啟動 Nginx
+CMD ["/bin/sh", "-c", "envsubst '${VITE_NAME} ${VITE_API_URL} ${VITE_API}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+
+# 進入容器/看變數有無改變
+# docker exec -it vue-dev /bin/sh
+# ls -l /etc/nginx/templates/
+# cat /etc/nginx/templates/default.conf.template | envsubst '${VITE_NAME} ${VITE_API}'
+
+
