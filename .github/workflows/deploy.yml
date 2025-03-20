@@ -112,7 +112,7 @@ jobs:
 
   deploy-dev:
     if: github.ref == 'refs/heads/dev'
-    needs: [build-dev, create-service, check-create-service]
+    needs: [build-dev, check-create-service]  # 移除 create-service 依賴
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 觸發 Render 部署 (Dev)
@@ -125,7 +125,7 @@ jobs:
 
   deploy-test:
     if: github.ref == 'refs/heads/test'
-    needs: [build-test, create-service, check-create-service]
+    needs: [build-test, check-create-service]  # 移除 create-service 依賴
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 觸發 Render 部署 (Test)
@@ -138,7 +138,7 @@ jobs:
 
   deploy-prod:
     if: github.ref == 'refs/heads/main'
-    needs: [build-prod, create-service, check-create-service]
+    needs: [build-prod, check-create-service]  # 移除 create-service 依賴
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 觸發 Render 部署 (Prod)
