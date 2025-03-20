@@ -1,0 +1,150 @@
+# 三個分支（dev、test、main）
+# 檢查並創建 Render 服務（如果需要）
+# 構建並推送 Docker image（使用 Git SHA 和 latest 標籤）
+# 觸發對應環境的 Render 部署。
+
+name: Deploy to Render
+
+on:
+  push:
+    branches:
+      - dev
+      - test
+      - main
+
+jobs:
+  check-create-service:
+    runs-on: ubuntu-latest
+    outputs:
+      service_exists: ${{ steps.check.outputs.service_exists }}
+      service_id: ${{ steps.check.outputs.service_id }}
+    steps:
+      - name: 🔎 檢查 Render 服務是否存在
+        id: check
+        run: |
+          SERVICE_NAME="vue-docker-${{ github.ref_name }}"
+          EXISTING_SERVICE=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services" | jq -r '.[] | select(.serviceName=="'$SERVICE_NAME'") | .id')
+
+          if [[ -n "$EXISTING_SERVICE" ]]; then
+            echo "✅ 服務已存在: $EXISTING_SERVICE"
+            echo "service_exists=true" >> $GITHUB_ENV
+            echo "service_id=$EXISTING_SERVICE" >> $GITHUB_ENV
+          else
+            echo "⚠️ 服務不存在，將自動建立..."
+            echo "service_exists=false" >> $GITHUB_ENV
+          fi
+          
+          echo "::set-output name=service_exists::$service_exists"
+          echo "::set-output name=service_id::$EXISTING_SERVICE"
+
+  create-service:
+    needs: check-create-service
+    if: needs.check-create-service.outputs.service_exists == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🏗 自動建立 Render 服務
+        run: |
+          curl -X POST "https://api.render.com/v1/services" \
+          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "serviceDetails": {
+              "name": "vue-docker-${{ github.ref_name }}",
+              "type": "web_service",
+              "env": "docker",
+              "repo": "${{ github.repository }}",
+              "branch": "${{ github.ref_name }}",
+              "region": "oregon"
+            }
+          }'
+
+  build-dev:
+    if: github.ref == 'refs/heads/dev'
+    needs: check-create-service
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔽 Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: 🔐 Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: 🏗 Build & Push Docker Image (Dev)
+        run: |
+          docker build -f docker/Dockerfile.dev -t hungcurry/vue-docker-dev:${{ github.sha }} -t hungcurry/vue-docker-dev:latest .
+          docker push hungcurry/vue-docker-dev:${{ github.sha }}
+          docker push hungcurry/vue-docker-dev:latest
+
+  build-test:
+    if: github.ref == 'refs/heads/test'
+    needs: check-create-service
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔽 Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: 🔐 Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: 🏗 Build & Push Docker Image (Test)
+        run: |
+          docker build -f docker/Dockerfile.test -t hungcurry/vue-docker-test:${{ github.sha }} -t hungcurry/vue-docker-test:latest .
+          docker push hungcurry/vue-docker-test:${{ github.sha }}
+          docker push hungcurry/vue-docker-test:latest
+
+  build-prod:
+    if: github.ref == 'refs/heads/main'
+    needs: check-create-service
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔽 Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: 🔐 Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: 🏗 Build & Push Docker Image (Prod)
+        run: |
+          docker build -f docker/Dockerfile.prod -t hungcurry/vue-docker-prod:${{ github.sha }} -t hungcurry/vue-docker-prod:latest .
+          docker push hungcurry/vue-docker-prod:${{ github.sha }}
+          docker push hungcurry/vue-docker-prod:latest
+
+  deploy-dev:
+    if: github.ref == 'refs/heads/dev'
+    needs: [build-dev, create-service, check-create-service]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 觸發 Render 部署 (Dev)
+        run: |
+          curl -X POST "https://api.render.com/v1/services/${{ needs.check-create-service.outputs.service_id }}/deploys" \
+          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+          -H "Accept: application/json" \
+          -H "Content-Type: application/json" \
+          -d '{}'
+
+  deploy-test:
+    if: github.ref == 'refs/heads/test'
+    needs: [build-test, create-service, check-create-service]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 觸發 Render 部署 (Test)
+        run: |
+          curl -X POST "https://api.render.com/v1/services/${{ needs.check-create-service.outputs.service_id }}/deploys" \
+          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+          -H "Accept: application/json" \
+          -H "Content-Type: application/json" \
+          -d '{}'
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    needs: [build-prod, create-service, check-create-service]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 觸發 Render 部署 (Prod)
+        run: |
+          curl -X POST "https://api.render.com/v1/services/${{ needs.check-create-service.outputs.service_id }}/deploys" \
+          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+          -H "Accept: application/json" \
+          -H "Content-Type: application/json" \
+          -d '{}'
