@@ -44,11 +44,27 @@ jobs:
       - name: 🔍 獲取 Owner ID
         id: get-owner
         run: |
-          OWNER_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            "https://api.render.com/v1/owners" | jq -r '.[] | select(.type=="user") | .id')
+          # 獲取 owners 列表並保存到臨時檔案以便檢查
+          curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/owners" > owners.json
+          
+          # 顯示回應內容以便 debug
+          echo "Owners response:"
+          cat owners.json
+
+          # 提取 user 類型的 ownerId
+          OWNER_ID=$(jq -r '.[] | select(.type=="user") | .id' owners.json)
+          
+          if [[ -z "$OWNER_ID" ]]; then
+            echo "錯誤：無法找到 user 類型的 ownerId"
+            exit 1
+          fi
+          
+          echo "找到 ownerId: $OWNER_ID"
           echo "owner_id=$OWNER_ID" >> $GITHUB_OUTPUT
       - name: 🏗 自動建立 Render 服務
         run: |
+          echo "使用 ownerId: ${{ steps.get-owner.outputs.owner_id }}"
           curl -X POST "https://api.render.com/v1/services" \
           -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
           -H "Content-Type: application/json" \
