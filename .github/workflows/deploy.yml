@@ -41,6 +41,12 @@ jobs:
     if: needs.check-create-service.outputs.service_exists == 'false'
     runs-on: ubuntu-latest
     steps:
+      - name: 🔍 獲取 Owner ID
+        id: get-owner
+        run: |
+          OWNER_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/owners" | jq -r '.[] | select(.type=="user") | .id')
+          echo "owner_id=$OWNER_ID" >> $GITHUB_OUTPUT
       - name: 🏗 自動建立 Render 服務
         run: |
           curl -X POST "https://api.render.com/v1/services" \
@@ -49,6 +55,7 @@ jobs:
           -d '{
             "serviceDetails": {
               "name": "vue-docker-${{ github.ref_name }}",
+              "ownerId": "${{ steps.get-owner.outputs.owner_id }}",
               "type": "web_service",
               "env": "docker",
               "repo": "${{ github.repository }}",
