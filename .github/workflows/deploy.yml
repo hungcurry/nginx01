@@ -66,10 +66,29 @@ jobs:
         run: |
           OWNER_ID="${{ steps.get-owner.outputs.owner_id }}"
           echo "使用 ownerId: $OWNER_ID"
+          # 構建 JSON 並存入變數
+          JSON_PAYLOAD=$(cat <<EOF
+          {
+            "serviceDetails": {
+              "name": "vue-docker-${{ github.ref_name }}",
+              "ownerId": "$OWNER_ID",
+              "type": "web_service",
+              "env": "docker",
+              "repo": "${{ github.repository }}",
+              "branch": "${{ github.ref_name }}",
+              "region": "oregon"
+            }
+          }
+          EOF
+          )
+          # 顯示 JSON 以便 debug
+          echo "JSON payload:"
+          echo "$JSON_PAYLOAD"
+          # 執行 curl 請求
           curl -X POST "https://api.render.com/v1/services" \
           -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
           -H "Content-Type: application/json" \
-          -d '{"serviceDetails": {"name": "vue-docker-'"${{ github.ref_name }}"'", "ownerId": "'"$OWNER_ID"'", "type": "web_service", "env": "docker", "repo": "'"$GITHUB_REPOSITORY"'", "branch": "'"$GITHUB_REF_NAME"'", "region": "oregon"}}'
+          -d "$JSON_PAYLOAD"
 
   build-dev:
     if: github.ref == 'refs/heads/dev'
@@ -143,6 +162,17 @@ jobs:
           -d '{}'
 
   deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    needs: [build-prod, check-create-service]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 觸發 Render 部署 (Prod)
+        run: |
+          curl -X POST "https://api.render.com/v1/services/${{ needs.check-create-service.outputs.service_id }}/deploys" \
+          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+          -H "Accept: application/json" \
+          -H "Content-Type: application/json" \
+          -d '{}'
     if: github.ref == 'refs/heads/main'
     needs: [build-prod, check-create-service]
     runs-on: ubuntu-latest
