@@ -66,16 +66,18 @@ jobs:
         run: |
           OWNER_ID="${{ steps.get-owner.outputs.owner_id }}"
           echo "使用 ownerId: $OWNER_ID"
-          # 構建 JSON 並存入變數，去除 serviceDetails 層級
+          # 構建 JSON 並存入變數，包含 serviceDetails
           JSON_PAYLOAD=$(cat <<EOF
             {
-              "name": "vue-docker-${{ github.ref_name }}",
-              "ownerId": "$OWNER_ID",
-              "type": "web_service",
-              "env": "docker",
-              "repo": "${{ github.repository }}",
-              "branch": "${{ github.ref_name }}",
-              "region": "oregon"
+              "serviceDetails": {
+                "name": "vue-docker-${{ github.ref_name }}",
+                "ownerID": "$OWNER_ID",
+                "type": "web_service",
+                "env": "docker",
+                "repo": "${{ github.repository }}",
+                "branch": "${{ github.ref_name }}",
+                "region": "oregon"
+              }
             }
           EOF
           )
