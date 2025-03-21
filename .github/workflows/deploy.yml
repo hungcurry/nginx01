@@ -57,7 +57,7 @@ jobs:
           OWNER_ID="${{ steps.get-owner.outputs.owner_id }}"
           echo "使用 ownerId: $OWNER_ID"
           # 使用單行 JSON 避免格式問題
-          JSON_PAYLOAD='{"serviceDetails":{"name":"vue-docker-'${{ github.ref_name }}'","ownerId":"'$OWNER_ID'","type":"free","env":"docker","repo":"'${{ github.repository }}'","branch":"'${{ github.ref_name }}'","region":"oregon","autoDeploy":false,"plan":"starter","docker":{"repo":"hungcurry/vue-docker-dev","tag":"latest"}}}'
+          JSON_PAYLOAD='{"serviceDetails":{"name":"vue-docker-'${{ github.ref_name }}'","ownerId":"'$OWNER_ID'","type":"web_service","env":"docker","repo":"'${{ github.repository }}'","branch":"'${{ github.ref_name }}'","region":"oregon","autoDeploy":false,"plan":"free","docker":{"repo":"hungcurry/vue-docker-dev","tag":"latest"}}}'
           echo "JSON payload:"
           echo "$JSON_PAYLOAD"
           echo "$JSON_PAYLOAD" > request.json
