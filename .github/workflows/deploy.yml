@@ -64,21 +64,12 @@ jobs:
           echo "owner_id=$OWNER_ID" >> $GITHUB_OUTPUT
       - name: 🏗 自動建立 Render 服務
         run: |
-          echo "使用 ownerId: ${{ steps.get-owner.outputs.owner_id }}"
+          OWNER_ID="${{ steps.get-owner.outputs.owner_id }}"
+          echo "使用 ownerId: $OWNER_ID"
           curl -X POST "https://api.render.com/v1/services" \
           -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
           -H "Content-Type: application/json" \
-          -d '{
-            "serviceDetails": {
-              "name": "vue-docker-${{ github.ref_name }}",
-              "ownerId": "${{ steps.get-owner.outputs.owner_id }}",
-              "type": "web_service",
-              "env": "docker",
-              "repo": "${{ github.repository }}",
-              "branch": "${{ github.ref_name }}",
-              "region": "oregon"
-            }
-          }'
+          -d '{"serviceDetails": {"name": "vue-docker-'"${{ github.ref_name }}"'", "ownerId": "'"$OWNER_ID"'", "type": "web_service", "env": "docker", "repo": "'"$GITHUB_REPOSITORY"'", "branch": "'"$GITHUB_REF_NAME"'", "region": "oregon"}}'
 
   build-dev:
     if: github.ref == 'refs/heads/dev'
