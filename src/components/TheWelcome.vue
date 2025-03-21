@@ -18,7 +18,7 @@ onMounted( async() => {
     <p v-else class="text-center">尚無資料</p>
 
     <p class="text-center"> 環境變數: {{ VITE_VARIABLES }}</p>
-    <p>dev 01</p>
+    <p>dev 02</p>
   </div>
 </template>
 
