@@ -8,7 +8,7 @@ Vue 並透過 Dockerfile 來部署時，
 基本 render docker部屬
 ---
 ```jsx=
-選web service 
+選 web service 
 使用 Dockerfile 方式
 Dockerfile Path 填入
 ~ docker/Dockerfile.dev
@@ -37,25 +37,25 @@ git push origin test
 🚀2. 寫完 dockerfile 先運行上傳 dockerHub
 ```jsx=
 ~[ Portainer ]( http://localhost:9000 )
-docker build -f docker/Dockerfile.dev --tag hungcurry/vue-docker-dev:v1 .
-docker run -p 4040:80 -d hungcurry/vue-docker-dev:v1
+docker build -f docker/Dockerfile.dev --tag hungcurry/vue-docker-dev:latest .
+docker run -p 4040:80 -d hungcurry/vue-docker-dev:latest
 ~[ run ]( http://localhost:4040/dev )
 
 ~ 打包 images
-docker save -o vue-docker-dev.tar hungcurry/vue-docker-dev:v1
+docker save -o vue-docker-dev.tar hungcurry/vue-docker-dev:latest
 
 ~上傳 Docker Hub
 docker login
-docker push hungcurry/vue-docker-dev:v1
+docker push hungcurry/vue-docker-dev:latest
 
-docker build -f docker/Dockerfile.prod --tag hungcurry/vue-docker-prod:v1 .
-docker push hungcurry/vue-docker-prod:v1
+docker build -f docker/Dockerfile.prod --tag hungcurry/vue-docker-prod:latest .
+docker push hungcurry/vue-docker-prod:latest
 
-docker build -f docker/Dockerfile.test --tag hungcurry/vue-docker-test:v1 .
-docker push hungcurry/vue-docker-test:v1
+docker build -f docker/Dockerfile.test --tag hungcurry/vue-docker-test:latest .
+docker push hungcurry/vue-docker-test:latest
 
 ~Render 測試部署
-使用 hungcurry/vue-docker-dev:v1
+使用 hungcurry/vue-docker-dev:latest
 來設定你的 Image
 ```
 
@@ -94,13 +94,13 @@ RENDER_API_KEY = ""
 ~Step 3：建立 render 3個環境專案
 ```jsx=
 1️⃣ web service => Existing Image
-2️⃣ hungcurry/vue-docker-test:v1
+2️⃣ hungcurry/vue-docker-test:latest
 
 hungcurry/vue-docker-dev:latest
-hungcurry/vue-docker-test:v1
-hungcurry/vue-docker-prod:v1
+hungcurry/vue-docker-test:latest
+hungcurry/vue-docker-prod:latest
 
-記得要補 當時上傳tag :latest 或 :v1
+記得要補 當時上傳tag :latest
 
 產生環境網址:
 ~dev
@@ -109,4 +109,14 @@ https://vue-docker-dev.onrender.com/dev/
 https://vue-docker-test-huvz.onrender.com/test/
 ~prod
 https://vue-docker-prod.onrender.com/prod/
+```
+
+畫面未更新 注意
+```jsx=
+檢查 Render 設定：
+Render 儀表板將 環境的映像改為 ：latest
+
+hungcurry/vue-docker-dev:latest
+hungcurry/vue-docker-test:latest
+hungcurry/vue-docker-prod:latest
 ```
