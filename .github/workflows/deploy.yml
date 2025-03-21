@@ -47,42 +47,17 @@ jobs:
             "https://api.render.com/v1/owners" > owners.json
           echo "Owners response:"
           cat owners.json
-          # 嘗試獲取 type=user 的 ownerId，而不是 team
-          OWNER_ID=$(jq -r '.[] | select(.owner.type == "user") | .owner.id' owners.json | head -n 1)
-          if [[ -z "$OWNER_ID" ]]; then
-            echo "警告：未找到個人用戶 ID，使用第一個 ownerId 作為備用"
-            OWNER_ID=$(jq -r '.[0].owner.id' owners.json)
-          fi
-          if [[ -z "$OWNER_ID" ]]; then
-            echo "錯誤：無法找到任何 ownerId"
-            exit 1
-          fi
+          # 臨時硬編碼個人 ownerId，因為 /v1/owners 只返回團隊 ID
+          OWNER_ID="usr-cstbfrl2ng1s73at7v10"
+          echo "注意：使用硬編碼的個人 ownerId ($OWNER_ID)，因為 /v1/owners 未返回個人 ID"
           echo "找到 ownerId: $OWNER_ID"
           echo "owner_id=$OWNER_ID" >> $GITHUB_OUTPUT
       - name: 🏗 自動建立 Render 服務
         run: |
           OWNER_ID="${{ steps.get-owner.outputs.owner_id }}"
           echo "使用 ownerId: $OWNER_ID"
-          JSON_PAYLOAD=$(cat <<EOF
-            {
-              "serviceDetails": {
-                "name": "vue-docker-${{ github.ref_name }}",
-                "ownerId": "$OWNER_ID",
-                "type": "web_service",
-                "env": "docker",
-                "repo": "${{ github.repository }}",
-                "branch": "${{ github.ref_name }}",
-                "region": "oregon",
-                "autoDeploy": false,
-                "plan": "starter",
-                "docker": {
-                  "repo": "hungcurry/vue-docker-dev",
-                  "tag": "latest"
-                }
-              }
-            }
-          EOF
-          )
+          # 使用單行 JSON 避免格式問題
+          JSON_PAYLOAD='{"serviceDetails":{"name":"vue-docker-'${{ github.ref_name }}'","ownerId":"'$OWNER_ID'","type":"web_service","env":"docker","repo":"'${{ github.repository }}'","branch":"'${{ github.ref_name }}'","region":"oregon","autoDeploy":false,"plan":"starter","docker":{"repo":"hungcurry/vue-docker-dev","tag":"latest"}}}'
           echo "JSON payload:"
           echo "$JSON_PAYLOAD"
           echo "$JSON_PAYLOAD" > request.json
