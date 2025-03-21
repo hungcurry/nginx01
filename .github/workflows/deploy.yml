@@ -25,7 +25,6 @@ jobs:
           SERVICE_NAME="vue-docker-${{ github.ref_name }}"
           EXISTING_SERVICE=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             "https://api.render.com/v1/services" | jq -r '.[] | select(.serviceName=="'$SERVICE_NAME'") | .id')
-
           if [[ -n "$EXISTING_SERVICE" ]]; then
             echo "✅ 服務已存在: $EXISTING_SERVICE"
             echo "service_exists=true" >> $GITHUB_OUTPUT
@@ -44,48 +43,39 @@ jobs:
       - name: 🔍 獲取 Owner ID
         id: get-owner
         run: |
-          # 獲取 owners 列表並保存到臨時檔案以便檢查
           curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             "https://api.render.com/v1/owners" > owners.json
-          
-          # 顯示回應內容以便 debug
           echo "Owners response:"
           cat owners.json
-
-          # 提取第一個 ownerId（不限制 type）
           OWNER_ID=$(jq -r '.[0].owner.id' owners.json)
-          
           if [[ -z "$OWNER_ID" ]]; then
             echo "錯誤：無法找到任何 ownerId"
             exit 1
           fi
-          
           echo "找到 ownerId: $OWNER_ID"
           echo "owner_id=$OWNER_ID" >> $GITHUB_OUTPUT
       - name: 🏗 自動建立 Render 服務
         run: |
           OWNER_ID="${{ steps.get-owner.outputs.owner_id }}"
           echo "使用 ownerId: $OWNER_ID"
-          # 構建 JSON 並存入變數，包含 serviceDetails
           JSON_PAYLOAD=$(cat <<EOF
             {
               "serviceDetails": {
                 "name": "vue-docker-${{ github.ref_name }}",
-                "ownerID": "$OWNER_ID",
+                "ownerId": "$OWNER_ID",
                 "type": "web_service",
                 "env": "docker",
                 "repo": "${{ github.repository }}",
                 "branch": "${{ github.ref_name }}",
-                "region": "oregon"
+                "region": "oregon",
+                "autoDeploy": false
               }
             }
           EOF
           )
-          # 顯示 JSON 以便 debug
           echo "JSON payload:"
           echo "$JSON_PAYLOAD"
-          # 執行 curl 請求
-          curl -X POST "https://api.render.com/v1/services" \
+          curl -v -X POST "https://api.render.com/v1/services" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD"
