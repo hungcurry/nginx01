@@ -74,7 +74,7 @@ jobs:
                 "branch": "${{ github.ref_name }}",
                 "region": "oregon",
                 "autoDeploy": false,
-                "plan": "free",
+                "plan": "starter",
                 "docker": {
                   "repo": "hungcurry/vue-docker-dev",
                   "tag": "latest"
