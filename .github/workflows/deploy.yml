@@ -52,11 +52,11 @@ jobs:
           echo "Owners response:"
           cat owners.json
 
-          # 提取 user 類型的 ownerId
-          OWNER_ID=$(jq -r '.[] | select(.type=="user") | .id' owners.json)
+          # 提取第一個 ownerId（不限制 type）
+          OWNER_ID=$(jq -r '.[0].owner.id' owners.json)
           
           if [[ -z "$OWNER_ID" ]]; then
-            echo "錯誤：無法找到 user 類型的 ownerId"
+            echo "錯誤：無法找到任何 ownerId"
             exit 1
           fi
           
