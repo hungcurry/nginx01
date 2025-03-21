@@ -68,17 +68,27 @@ jobs:
                 "repo": "${{ github.repository }}",
                 "branch": "${{ github.ref_name }}",
                 "region": "oregon",
-                "autoDeploy": false
+                "autoDeploy": false,
+                "docker": {
+                  "repo": "hungcurry/vue-docker-dev",
+                  "tag": "latest"
+                }
               }
             }
           EOF
           )
           echo "JSON payload:"
           echo "$JSON_PAYLOAD"
+          # 保存 JSON 到檔案並檢查
+          echo "$JSON_PAYLOAD" > request.json
+          cat request.json
+          # 執行 curl 並保存回應
           curl -v -X POST "https://api.render.com/v1/services" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD"
+            -d "@request.json" > response.json 2>&1
+          echo "API response:"
+          cat response.json
 
   build-dev:
     if: github.ref == 'refs/heads/dev'
