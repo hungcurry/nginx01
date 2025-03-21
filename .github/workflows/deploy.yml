@@ -40,34 +40,40 @@ jobs:
     if: needs.check-create-service.outputs.service_exists == 'false'
     runs-on: ubuntu-latest
     steps:
-      - name: 🔍 獲取 Owner ID
+      - name: 🔍 設定個人 Owner ID
         id: get-owner
         run: |
-          curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            "https://api.render.com/v1/owners" > owners.json
-          echo "Owners response:"
-          cat owners.json
-          # 臨時硬編碼個人 ownerId，因為 /v1/owners 只返回團隊 ID
           OWNER_ID="usr-cstbfrl2ng1s73at7v10"
-          echo "注意：使用硬編碼的個人 ownerId ($OWNER_ID)，因為 /v1/owners 未返回個人 ID"
-          echo "找到 ownerId: $OWNER_ID"
+          echo "使用個人 ownerId: $OWNER_ID (硬編碼)"
           echo "owner_id=$OWNER_ID" >> $GITHUB_OUTPUT
-      - name: 🏗 自動建立 Render 服務
+      - name: 🏗 測試結構 1 - ownerId 在 serviceDetails 中 (plan: free)
         run: |
           OWNER_ID="${{ steps.get-owner.outputs.owner_id }}"
-          echo "使用 ownerId: $OWNER_ID"
-          # 使用單行 JSON 避免格式問題
-          JSON_PAYLOAD='{"serviceDetails":{"name":"vue-docker-'${{ github.ref_name }}'","ownerId":"'$OWNER_ID'","type":"web_service","env":"docker","repo":"'${{ github.repository }}'","branch":"'${{ github.ref_name }}'","region":"oregon","autoDeploy":false,"plan":"starter","docker":{"repo":"hungcurry/vue-docker-dev","tag":"latest"}}}'
+          echo "測試 1: ownerId 在 serviceDetails 中, plan: free"
+          JSON_PAYLOAD='{"serviceDetails":{"name":"vue-docker-'${{ github.ref_name }}'","ownerId":"'$OWNER_ID'","type":"web_service","env":"docker","repo":"'${{ github.repository }}'","branch":"'${{ github.ref_name }}'","region":"oregon","autoDeploy":false,"plan":"free","docker":{"repo":"hungcurry/vue-docker-dev","tag":"latest"}}}'
           echo "JSON payload:"
           echo "$JSON_PAYLOAD"
-          echo "$JSON_PAYLOAD" > request.json
-          cat request.json
+          echo "$JSON_PAYLOAD" > request1.json
           curl -v -X POST "https://api.render.com/v1/services" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "@request.json" > response.json 2>&1
-          echo "API response:"
-          cat response.json
+            -d "@request1.json" > response1.json 2>&1
+          echo "API response (結構 1):"
+          cat response1.json
+      - name: 🏗 測試結構 2 - ownerId 在頂層 (plan: free)
+        run: |
+          OWNER_ID="${{ steps.get-owner.outputs.owner_id }}"
+          echo "測試 2: ownerId 在頂層, plan: free"
+          JSON_PAYLOAD='{"ownerId":"'$OWNER_ID'","serviceDetails":{"name":"vue-docker-'${{ github.ref_name }}'","type":"web_service","env":"docker","repo":"'${{ github.repository }}'","branch":"'${{ github.ref_name }}'","region":"oregon","autoDeploy":false,"plan":"free","docker":{"repo":"hungcurry/vue-docker-dev","tag":"latest"}}}'
+          echo "JSON payload:"
+          echo "$JSON_PAYLOAD"
+          echo "$JSON_PAYLOAD" > request2.json
+          curl -v -X POST "https://api.render.com/v1/services" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "@request2.json" > response2.json 2>&1
+          echo "API response (結構 2):"
+          cat response2.json
 
   build-dev:
     if: github.ref == 'refs/heads/dev'
@@ -83,6 +89,21 @@ jobs:
           docker build -f docker/Dockerfile.dev -t hungcurry/vue-docker-dev:${{ github.sha }} -t hungcurry/vue-docker-dev:latest .
           docker push hungcurry/vue-docker-dev:${{ github.sha }}
           docker push hungcurry/vue-docker-dev:latest
+
+  deploy-dev:
+    if: github.ref == 'refs/heads/dev'
+    needs: [build-dev, check-create-service]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 觸發 Render 部署 (Dev)
+        run: |
+          curl -X POST "https://api.render.com/v1/services/${{ needs.check-create-service.outputs.service_id }}/deploys" \
+          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+          -H "Accept: application/json" \
+          -H "Content-Type: application/json" \
+          -d '{}'
+
+  # build-test, deploy-test, build-prod, deploy-prod 等保持不變  
 
   build-test:
     if: github.ref == 'refs/heads/test'
@@ -113,19 +134,6 @@ jobs:
           docker build -f docker/Dockerfile.prod -t hungcurry/vue-docker-prod:${{ github.sha }} -t hungcurry/vue-docker-prod:latest .
           docker push hungcurry/vue-docker-prod:${{ github.sha }}
           docker push hungcurry/vue-docker-prod:latest
-
-  deploy-dev:
-    if: github.ref == 'refs/heads/dev'
-    needs: [build-dev, check-create-service]
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🚀 觸發 Render 部署 (Dev)
-        run: |
-          curl -X POST "https://api.render.com/v1/services/${{ needs.check-create-service.outputs.service_id }}/deploys" \
-          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-          -H "Accept: application/json" \
-          -H "Content-Type: application/json" \
-          -d '{}'
 
   deploy-test:
     if: github.ref == 'refs/heads/test'
