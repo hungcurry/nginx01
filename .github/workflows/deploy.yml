@@ -47,7 +47,12 @@ jobs:
             "https://api.render.com/v1/owners" > owners.json
           echo "Owners response:"
           cat owners.json
-          OWNER_ID=$(jq -r '.[0].owner.id' owners.json)
+          # 嘗試獲取 type=user 的 ownerId，而不是 team
+          OWNER_ID=$(jq -r '.[] | select(.owner.type == "user") | .owner.id' owners.json | head -n 1)
+          if [[ -z "$OWNER_ID" ]]; then
+            echo "警告：未找到個人用戶 ID，使用第一個 ownerId 作為備用"
+            OWNER_ID=$(jq -r '.[0].owner.id' owners.json)
+          fi
           if [[ -z "$OWNER_ID" ]]; then
             echo "錯誤：無法找到任何 ownerId"
             exit 1
@@ -69,6 +74,7 @@ jobs:
                 "branch": "${{ github.ref_name }}",
                 "region": "oregon",
                 "autoDeploy": false,
+                "plan": "free",
                 "docker": {
                   "repo": "hungcurry/vue-docker-dev",
                   "tag": "latest"
@@ -79,10 +85,8 @@ jobs:
           )
           echo "JSON payload:"
           echo "$JSON_PAYLOAD"
-          # 保存 JSON 到檔案並檢查
           echo "$JSON_PAYLOAD" > request.json
           cat request.json
-          # 執行 curl 並保存回應
           curl -v -X POST "https://api.render.com/v1/services" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
