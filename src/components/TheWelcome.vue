@@ -19,6 +19,7 @@ onMounted( async() => {
 
     <p class="text-center"> 環境變數: {{ VITE_VARIABLES }}</p>
     <p>02</p>
+    <p>dev 01</p>
   </div>
 </template>
 
