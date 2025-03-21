@@ -1,5 +1,5 @@
 # 三個分支（dev、test、main）
-# 檢查並創建 Render 服務（如果需要）
+# 檢查並創建 Render 服務
 # 構建並推送 Docker image（使用 Git SHA 和 latest 標籤）
 # 觸發對應環境的 Render 部署。
 
@@ -9,9 +9,12 @@ on:
   push:
     branches:
       - dev
+      - test
+      - main
 
 jobs:
   build-dev:
+    if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -24,13 +27,69 @@ jobs:
           docker push hungcurry/vue-docker-dev:${{ github.sha }}
           docker push hungcurry/vue-docker-dev:latest
 
+  build-test:
+    if: github.ref == 'refs/heads/test'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+      - name: Build & Push Docker Image (Test)
+        run: |
+          docker build -f docker/Dockerfile.test -t hungcurry/vue-docker-test:${{ github.sha }} -t hungcurry/vue-docker-test:latest .
+          docker push hungcurry/vue-docker-test:${{ github.sha }}
+          docker push hungcurry/vue-docker-test:latest
+
+  build-prod:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+      - name: Build & Push Docker Image (Prod)
+        run: |
+          docker build -f docker/Dockerfile.prod -t hungcurry/vue-docker-prod:${{ github.sha }} -t hungcurry/vue-docker-prod:latest .
+          docker push hungcurry/vue-docker-prod:${{ github.sha }}
+          docker push hungcurry/vue-docker-prod:latest
+
   deploy-dev:
     needs: build-dev
     runs-on: ubuntu-latest
+    env:
+      RENDER_SERVICE_ID: "srv-cveg6052ng1s73cg0qkg"
     steps:
       - name: Trigger Render Deploy (Dev)
         run: |
-          curl -X POST "https://api.render.com/v1/services/srv-cvefacd2ng1s73cfq0e0/deploys" \
+          curl -X POST "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+
+  deploy-test:
+    needs: build-test
+    runs-on: ubuntu-latest
+    env:
+      RENDER_SERVICE_ID: "srv-cveg36dumphs73bqi8l0"
+    steps:
+      - name: Trigger Render Deploy (Test)
+        run: |
+          curl -X POST "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+
+  deploy-prod:
+    needs: build-prod
+    runs-on: ubuntu-latest
+    env:
+      RENDER_SERVICE_ID: "srv-cveg4gfnoe9s73envj3g"
+    steps:
+      - name: Trigger Render Deploy (Prod)
+        run: |
+            curl -X POST "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{}'
